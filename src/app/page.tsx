@@ -1,95 +1,96 @@
-import Image from "next/image";
+'use client'
 import styles from "./page.module.css";
+import { useEffect, useState } from "react";
+import { MainCard } from "@/components/MainCard";
+import { ContentBox } from "@/components/ContentBox";
+import { Header } from "@/components/Header";
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { DateAndTime } from "@/components/DateAndTime";
+import { Search } from "@/components/Search";
+import { MetricsBox } from "@/components/MetricsBox";
+import { UnitSwitch } from "@/components/UnitSwitch";
+import { ErrorScreen } from "@/components/ErrorScreen";
+import { cityTypes, weatherType } from "@/type/api";
+import { GetCity } from "@/app/api/data"
+import { GetWeather } from "@/app/api/weather"
+import {getWeatherDescription, iconeWeather} from "@/services/weather_code"
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  
+    const [cityInput, setCityInput] = useState("Riga");
+    const [triggerFetch, setTriggerFetch] = useState(true);
+  
+    const [cityData, setCityData] = useState<cityTypes>();
+    const [weatherData,setWeatherData] = useState<weatherType>()
+    const [unitSystem, setUnitSystem] = useState("fr");
+  
+    useEffect(() => {
+    GetCity(cityInput).then((res :any)=>
+      setTimeout(() => {
+        setCityData(res.data.results[0])
+      }, 2500)
+      )
+    }, [cityInput]);
+   
+    useEffect(() => { 
+      if(!cityData){
+        <LoadingScreen loadingMessage="Loading data..." />
+    }else{ 
+     GetWeather(cityData.latitude, cityData.longitude,unitSystem).then((res:any)=>
+     setWeatherData(res.data))
+    }}, [cityData, unitSystem])
+    let description=""
+    let weatherIcone=""
+    if(!weatherData){
+      <LoadingScreen loadingMessage="Loading data..." />
+  }else{ 
+     description = getWeatherDescription(weatherData.current.weather_code)
+     weatherIcone = iconeWeather(weatherData.current.weather_code)}
+    
+    const changeSystem = () =>
+      unitSystem == "fr"
+        ? setUnitSystem("en")
+        : setUnitSystem("fr");
+        
+    return weatherData  ? (
+      <div className={styles.wrapper}>
+        <MainCard
+          city={cityData?.name}
+          country={cityData?.country}
+          description={description}
+          weatherData={weatherData}
+          iconName={`${weatherIcone}d.svg`}/>
+        <ContentBox>
+          <Header>
+            <DateAndTime weatherData={weatherData} unitSystem={unitSystem} />
+            <Search
+              placeHolder="Search a city..."
+              value={cityInput}
+              onFocus={(e :any) => {
+                e.target.value = "";
+                e.target.placeholder = "";
+              }}
+              onChange={(e :any) => setCityInput(e.target.value)}
+              onKeyDown={(e: any) => {
+                e.keyCode === 13 && setTriggerFetch(!triggerFetch);
+                e.target.placeholder = "Search a city...";
+              }}
             />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
-}
+          </Header>
+          <MetricsBox weatherData={weatherData} unitSystem={unitSystem} />
+          <UnitSwitch onClick={changeSystem} unitSystem={unitSystem} />
+        </ContentBox>
+      </div>
+    )
+     : weatherData ? (
+      <ErrorScreen errorMessage="City not found, try again!">
+        <Search
+            onFocus={(e: any) => (e.target.value = "")}
+            onChange={(e: any) => setCityInput(e.target.value)}
+            onKeyDown={(e: any) => e.keyCode === 13 && setTriggerFetch(!triggerFetch)} placeHolder={undefined} value={undefined}        />
+      </ErrorScreen>
+    ) : (
+      <LoadingScreen loadingMessage="Loading data..." />
+    );
+  };
+
